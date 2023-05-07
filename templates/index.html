@@ -1,23 +1,183 @@
-<!DOCTYPE HTML>
-<html>
- <head>
-  <title>Flask-SocketIO Test</title>
-   <script type="text/javascript" src="//code.jquery.com/jquery-1.4.2.min.js"></script>
+<!doctype html>                                   
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>jQuery UI Tabs - Open on mouseover</title>
+    <!-- http://jqueryui.com/tabs/#mouseover -->
+    <link rel="stylesheet" href="static/jquery-ui.min.css">
+    <script src="static/jquery-3.2.1.min.js"></script>
+    <script src="static/jquery-ui.min.js"></script>
    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.5/socket.io.min.js"></script>
-   <script type="text/javascript" charset="utf-8">
-     $(document).ready(function() {
+   <script src="static/plotly-latest.min.js"></script>
+   <script src="static/gauge.min.js"></script>
+    <script>
+      var tab = 1;
+      let dbdata = 1;
+      let rowNum = 1;
+      var x = new Array();
+      var t = new Array();
+      var h = new Array();
+      var d = new Array();
+      
+      function changeDbdata(theForm){
+        dbdata = theForm.num.value;
+        fetchData();
+      }
+      function changeFile(theForm){
+        rowNum = theForm.num2.value;
+        fetchData();
+      }
+
+      
+       function fetchData(){
+          x = new Array();
+          t = new Array();
+          h = new Array();
+          d = new Array();
+          var myType;
+          var myUrl;
+          if(tab === 2){
+            myType = "POST";
+            myUrl = "/dbdata/"+dbdata;
+          }else{
+            myType = "GET";
+            myUrl = "/read/"+rowNum;
+          }
+          $.ajax({
+              type: myType,
+              url: myUrl,
+              success:function(data) 
+              {  
+                data = JSON.parse(data);  
+                n = Object.keys(data).length;
+                $('#log2').text("");
+                $('#log3').text("");
+                for (var i=0; i< n; i++){
+                  x.push(parseFloat(data[i].count));
+                  t.push(parseFloat(data[i].t)); 
+                  h.push(parseFloat(data[i].h))
+                  d.push(parseFloat(data[i].d))   
+                  $('#log2').append('Received # Time:'+data[i].count+' Temp:'+data[i].t+': Him:'+data[i].h+': Dist:'+data[i].d+'<br>').html();   
+                  $('#log3').append('Received # Time:'+data[i].count+' Temp:'+data[i].t+': Him:'+data[i].h+': Dist:'+data[i].d+'<br>').html();   
+                }   
+              }
+            }).done(function( o ) {
+                printGraph();
+            }); 
+        
+      }
+      
+      function printGraph(){
+         traceT = {
+            x: x,
+            y: t,
+            name: 'Temp'
+        }; 
+        traceH = {
+            x: x,
+            y: h,
+            name: 'Him'
+        };  
+        traceD = {
+            x: x,
+            y: d,
+            name: 'Dist'
+        };      
+        layout = {
+          title: 'Graph',
+          xaxis: {
+              title: 'cas',
+          },
+          yaxis: {
+              title: 'Data',
+              range: [0,100]
+          }
+        };
+        var traces = [traceT, traceH, traceD];
+        
+        if(tab ===1){
+          Plotly.newPlot($('#plotdiv')[0], traces, layout); 
+        }else if(tab === 2){
+          Plotly.newPlot($('#plotdiv2')[0], traces, layout); 
+        }else{
+          Plotly.newPlot($('#plotdiv3')[0], traces, layout); 
+        }
+      }
+      
+      $( function() {
+        $( "#tabs" ).tabs({
+            event: "click", 
+          });
+      });
+      
+      $( function() {
+        $("#ui-id-1").on( "click", function( event ) {
+          tab = 1;
+          x = new Array();
+          t = new Array();
+          h = new Array();
+          d = new Array();
+          $('#log').text("");
+        });
+      });
+      $( function() {
+        $("#ui-id-2").on( "click", function( event ) {
+          tab = 2;
+          x = new Array();
+          t = new Array();
+          h = new Array();
+          d = new Array();
+          fetchData();
+        });
+      });
+      $( function() {
+        $("#ui-id-3").on( "click", function( event ) {
+          tab = 3;
+          x = new Array();
+          t = new Array();
+          h = new Array();
+          d = new Array();
+          fetchData();
+        });
+      });
+     
+      var B = true;
+      
+      $(document).ready(function() {  
+      $("input[name='changeSave']").change(function() {
+          var val = $(this).val();
+          if(val == "File"){
+            $('#db').attr('checked',false);
+          }else{
+            $('#db').attr('checked',true);
+          }
+          B = !B;
+      });  
+      var traceT;
+      var traceH;
+      var traceD;
+      var layout;
       namespace = '/test';
       var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port + namespace);
-      console.log(socket);
+
       socket.on('connect', function() {
-        socket.emit('my_event', {data: 'I\'m connected!', value: 1}); });
+        socket.emit('my_event', {data: 'I\'m connected!', value: $('#emit_value').val(), valueRadio: B}); });
 
       socket.on('my_response', function(msg) {
-        console.log(msg);
-        $('#log').append('Received # Temp:'+msg.t+': Him:'+msg.h+': Dist:'+msg.d+'<br>').html(); });
-
+        $('#log').append('Received # Time:'+msg.count+' Temp:'+msg.t+': Him:'+msg.h+': Dist:'+msg.d+'<br>').html(); 
+        if(tab === 1){
+          x.push(parseFloat(msg.count));
+          t.push(parseFloat(msg.t));
+          h.push(parseFloat(msg.h));
+          d.push(parseFloat(msg.d/10));
+          printGraph();
+        }
+        //addTraces               
+        });
       $('form#emit').submit(function(event) {
-          socket.emit('my_event', {value: $('#emit_value').val()});
+          socket.emit('my_event', {value: $('#emit_value').val(), valueRadio: B});
+          console.log("First"+$('#emit_value').val())
+          $('input[name="emit_value"]').val($('#emit_value').val());
           return false; });
       $('#buttonVal').click(function(event) {
           //console.log($('#buttonVal').val());
@@ -29,18 +189,195 @@
           else {
             $(this).val("start");
             $(this).text("Start");
+            if(B){
+              alert("Zapisane do databazy");
+            }else{
+              alert("Zapisane do suboru");
+            }
           }
           return false; }); 
       $('form#disconnect').submit(function(event) {
           socket.emit('disconnect_request');
           return false; });         
       });
+      
+      $(document).ready(function() {    
+      var gauge = new RadialGauge({
+          renderTo: 'canvasID',
+          width: 300,
+          height: 300,
+          units: "°C",
+          minValue: 0,
+          maxValue: 35,
+          majorTicks: [
+              "0","5","10","15","20","25","30","35",
+          ],
+          minorTicks: 2,
+          strokeTicks: true,
+          highlights: [
+              {
+                  "from": 0,
+                  "to": 10,
+                  "color": "rgba(200, 50, 50, .75)"
+              }
+          ],
+          colorPlate: "#fff",
+          borderShadowWidth: 0,
+          borders: false,
+          needleType: "arrow",
+          needleWidth: 2,
+          needleCircleSize: 7,
+          needleCircleOuter: true,
+          needleCircleInner: false,
+          animationDuration: 1500,
+          animationRule: "linear"
+      });
+      gauge.draw();
+      gauge.value = "0";
+      var gauge2 = new RadialGauge({
+          renderTo: 'canvasID2',
+          width: 300,
+          height: 300,
+          units: "Vlhkost",
+          minValue: 0,
+          maxValue: 100,
+          majorTicks: [
+            "0","5","10","15","20","25","30","35", "40","45","50","55","60","65","70","75","80","85","90","95","100",      
+          ],
+          highlights: [
+              {
+                  "from": 0,
+                  "to": 20,
+                  "color": "rgba(200, 50, 50, .75)"
+              }
+          ],
+          minorTicks: 2,
+          strokeTicks: true,
+          colorPlate: "#fff",
+          borderShadowWidth: 0,
+          borders: false,
+          needleType: "arrow",
+          needleWidth: 2,
+          needleCircleSize: 7,
+          needleCircleOuter: true,
+          needleCircleInner: false,
+          animationDuration: 1500,
+          animationRule: "linear"
+      });
+      gauge2.draw();
+      gauge2.value = "0";
+      var gauge3 = new RadialGauge({
+          renderTo: 'canvasID3',
+          width: 300,
+          height: 300,
+          units: "Cm",
+          minValue: 0,
+          maxValue: 10,
+          majorTicks: [
+              "0","1","2","3","4","5","6","7","8","9","10",
+          ],
+          minorTicks: 2,
+          strokeTicks: true,
+          highlights: [
+              {
+                  "from": 0,
+                  "to": 1,
+                  "color": "rgba(200, 50, 50, .75)"
+              }
+          ],
+          colorPlate: "#fff",
+          borderShadowWidth: 0,
+          borders: false,
+          needleType: "arrow",
+          needleWidth: 2,
+          needleCircleSize: 7,
+          needleCircleOuter: true,
+          needleCircleInner: false,
+          animationDuration: 1500,
+          animationRule: "linear"
+      });
+      gauge3.value = "0";
+      gauge3.draw();
+      namespace = '/test';
+      var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port + namespace);
+
+      socket.on('connect', function() {
+        socket.emit('my_event', {data: 'I\'m connected!', value: $('#emit_value').val(), valueRadio: B}); });
+        
+      socket.on('my_response', function(msg) {
+         
+        if(tab === 1){
+          gauge.value = msg.t;                
+          gauge2.value = msg.h;                
+          gauge3.value = msg.d/10;
+        }
+        });
+
+      $('form#emit').submit(function(event) {
+          socket.emit('my_event', {value: $('#emit_value').val(), valueRadio: B});
+          console.log("Second"+$('#emit_value').val())
+          $('input[name="emit_value"]').val($('#emit_value').val());
+          return false; });
+      $('#buttonVal').click(function(event) {
+          socket.emit('click_event', {value: $('#buttonVal').val()});
+          return false; });
+      $('form#disconnect').submit(function(event) {
+          socket.emit('disconnect_request');
+          return false; });         
+      });
     </script>
- </head>
- <body>
-  <div id="log"></div>
-  <form id="open" method="POST" action="#">
-    <input type="submit" value="Open">
-  </form> 
- </body>
+  </head>
+  <body>
+   
+    <div id="tabs">
+      <ul>
+        <li><a href="#tabs-1">From device</a></li>
+        <li><a href="#tabs-2">From database</a></li>
+        <li><a href="#tabs-3">From file</a></li>
+      </ul>
+      <div id="tabs-1">
+        <h2>Send:</h2>
+        <form id="emit" method="POST" action='#'>
+          <input type="text" name="emit_value" id="emit_value" value=50>
+          <tr>
+            <td><input type="radio" id="db" name="changeSave" value="Database" checked="true"><label for="db">DB</label></td>
+            <td><input type="radio" id="File" name="changeSave" value="File"><label for="File">File</label></td>
+          </tr>
+          <input type="submit" value="Echo">
+        </form>
+        
+        <button id="buttonVal" type="submit" value="start">Start</button>
+        <form id="disconnect" method="POST" action="#">
+          <input type="submit" value="Disconnect">
+        </form> 
+        <div id="plotdiv" style="width:1000px;height:600px;"></div>
+        <canvas id="canvasID"></canvas>
+        <canvas id="canvasID2"></canvas>
+        <canvas id="canvasID3"></canvas>
+        <h2>Receive:</h2>
+        <div id="log"></div>
+      </div>
+      <div id="tabs-2">
+          <div id="plotdiv2" style="width:1000px;height:600px;"></div>
+          <form action="javascript:;" onsubmit="changeDbdata(this)">
+            <label for="fname">Number of graph data</label><br>
+            <input type="text" id="num" name="num" value="1"><br>
+            <input type="submit" value="Submit">
+          </form> 
+          <h2>Data:</h2>
+          <div id="log2"></div>
+      </div>
+      <div id="tabs-3">
+        <div id="plotdiv3" style="width:1000px;height:600px;"></div>
+          <form action="javascript:;" onsubmit="changeFile(this)">
+            <label for="fname">Number of graph data</label><br>
+            <input type="text" id="num2" name="num" value="1"><br>
+            <input type="submit" value="Submit">
+          </form> 
+          <h2>Data:</h2>
+          <div id="log3"></div>
+      </div>
+    </div>
+ 
+  </body>
 </html>
